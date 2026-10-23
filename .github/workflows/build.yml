@@ -1,0 +1,82 @@
+# Builds the road database for Road Alerts once a month (and on demand) and publishes it as a
+# release: roads.db.gz plus roads.json (dates, size, checksum) for the app's UPDATE MAP button.
+name: Build road database
+
+on:
+  schedule:
+    # The 3rd of each month, 03:00 UTC (Geofabrik's extract is fresh daily).
+    - cron: "0 3 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python packages
+        run: pip install osmium==4.0.2
+
+      - name: OpenStreetMap extract (Australia)
+        run: |
+          mkdir -p build/osm build/szone
+          curl -sSfL -o build/osm/australia-latest.osm.pbf \
+            https://download.geofabrik.de/australia-oceania/australia-latest.osm.pbf
+
+      - name: NSW speed zones (Transport for NSW open data)
+        env:
+          TFNSW_API_KEY: ${{ secrets.TFNSW_API_KEY }}
+        run: |
+          meta=$(curl -sSf -H "Authorization: $TFNSW_API_KEY" \
+            "https://opendata.transport.nsw.gov.au/data/api/3/action/package_show?id=speed-zones")
+          url=$(echo "$meta" | python -c 'import json,sys; r=json.load(sys.stdin)["result"]["resources"]; print(next(x["url"] for x in r if "GeoJSON" in x["name"]))')
+          date=$(echo "$meta" | python -c 'import json,sys; print(json.load(sys.stdin)["result"]["metadata_modified"][:10])')
+          echo "ZONES_DATE=$date" >> "$GITHUB_ENV"
+          curl -sSfL -H "Authorization: $TFNSW_API_KEY" -o build/szone/speed_zones.geojson "$url"
+
+      - name: Build
+        run: python tools/build_road_db.py build/osm/australia-latest.osm.pbf build/roads.db
+
+      - name: Package
+        id: pack
+        run: |
+          python - <<'EOF'
+          import gzip, hashlib, json, os, shutil, sqlite3
+          db = "build/roads.db"
+          meta = dict(sqlite3.connect(db).execute("SELECT key, value FROM meta"))
+          sha = hashlib.sha256()
+          with open(db, "rb") as f, gzip.open("build/roads.db.gz", "wb", compresslevel=9) as out:
+              for chunk in iter(lambda: f.read(1 << 20), b""):
+                  sha.update(chunk)
+                  out.write(chunk)
+          manifest = {
+              "map_date": meta["source_date"],
+              "zones_date": meta.get("zones_date"),
+              "built": meta["built"],
+              "bytes": os.path.getsize(db),
+              "gz_bytes": os.path.getsize("build/roads.db.gz"),
+              "sha256": sha.hexdigest(),
+          }
+          json.dump(manifest, open("build/roads.json", "w"), indent=1)
+          print(manifest)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as o:
+              o.write(f"tag=map-{meta['source_date']}\n")
+          EOF
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.pack.outputs.tag }}"
+          gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$tag" build/roads.db.gz build/roads.json \
+            --title "Road map $tag" --latest \
+            --notes "OpenStreetMap (ODbL) and Transport for NSW Speed Zones (CC BY 4.0). See README."
