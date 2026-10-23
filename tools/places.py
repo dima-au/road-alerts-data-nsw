@@ -150,11 +150,12 @@ def add(pbf, db_path, rest_csv, toilets_csv=None):
     rows = handler.rows
     if toilets_csv and os.path.exists(toilets_csv):
         official = toilet_map(toilets_csv)
-        # OpenStreetMap's toilets only where the official map has none within ~100 m.
-        near = {(round(r[0], 3), round(r[1], 3)) for r in official}
+        # OpenStreetMap's toilets only where the official map has none within ~300 m.
+        cell = 0.003
+        near = {(int(r[0] // cell), int(r[1] // cell)) for r in official}
         def covered(lat, lon):
-            return any((round(lat, 3) + a, round(lon, 3) + b) in near
-                       for a in (-0.001, 0, 0.001) for b in (-0.001, 0, 0.001))
+            la, lo = int(lat // cell), int(lon // cell)
+            return any((la + a, lo + b) in near for a in (-1, 0, 1) for b in (-1, 0, 1))
         rows = [r for r in rows if r[2] != TOILETS or not covered(r[0], r[1])] + official
     if rest_csv and os.path.exists(rest_csv):
         rows += rest_areas(rest_csv)
