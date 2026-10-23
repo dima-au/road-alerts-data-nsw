@@ -2,7 +2,7 @@
 
 The offline road database of the Road Alerts app for **New South Wales**: speed limits (official
 NSW speed zones over OpenStreetMap), school zones on NSW school days, speed cameras, STOP / GIVE
-WAY signs. The OpenStreetMap part covers all of Australia, but only NSW has the official zones and
+WAY signs, and places to stop (NSW rest areas, fast food chains, public toilets, fuel). The OpenStreetMap part covers all of Australia, but only NSW has the official zones and
 school calendar. Built here once a month by GitHub Actions and published as
 the latest release: `roads.db.gz` and `roads.json` (dates, size, SHA-256 of the database).
 
@@ -14,6 +14,8 @@ The build scripts in `tools/` are copies of the app's; the database format must 
   contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/).
   The database published here is a derived database under the same licence.
 - **Transport for NSW**, [Speed Zones](https://opendata.transport.nsw.gov.au/data/dataset/speed-zones),
+  Creative Commons Attribution 4.0.
+- **Transport for NSW**, [NSW Rest Areas](https://opendata.transport.nsw.gov.au/data/dataset/nsw-rest-areas),
   Creative Commons Attribution 4.0.
 - **NSW Department of Education**, school terms; **date.nager.at**, public holidays.
 

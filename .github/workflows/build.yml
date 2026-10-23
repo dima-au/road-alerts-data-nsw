@@ -16,9 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -41,6 +41,15 @@ jobs:
           date=$(echo "$meta" | python -c 'import json,sys; print(json.load(sys.stdin)["result"]["metadata_modified"][:10])')
           echo "ZONES_DATE=$date" >> "$GITHUB_ENV"
           curl -sSfL -H "Authorization: $TFNSW_API_KEY" -o build/szone/speed_zones.geojson "$url"
+
+      - name: NSW rest areas (Transport for NSW open data)
+        env:
+          TFNSW_API_KEY: ${{ secrets.TFNSW_API_KEY }}
+        run: |
+          mkdir -p build/rest
+          meta=$(curl -sSf -H "Authorization: $TFNSW_API_KEY"             "https://opendata.transport.nsw.gov.au/data/api/3/action/package_show?id=nsw-rest-areas")
+          url=$(echo "$meta" | python -c 'import json,sys; r=json.load(sys.stdin)["result"]["resources"]; print(next(x["url"] for x in r if x["name"] == "NSW Rest Areas - CSV Format"))')
+          curl -sSfL -H "Authorization: $TFNSW_API_KEY" -o build/rest/rest-areas.csv "$url"
 
       - name: Build
         run: python tools/build_road_db.py build/osm/australia-latest.osm.pbf build/roads.db
