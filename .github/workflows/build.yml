@@ -51,6 +51,12 @@ jobs:
           url=$(echo "$meta" | python -c 'import json,sys; r=json.load(sys.stdin)["result"]["resources"]; print(next(x["url"] for x in r if x["name"] == "NSW Rest Areas - CSV Format"))')
           curl -sSfL -H "Authorization: $TFNSW_API_KEY" -o build/rest/rest-areas.csv "$url"
 
+      - name: National Public Toilet Map (data.gov.au)
+        run: |
+          mkdir -p build/toilets
+          url=$(curl -sSf "https://data.gov.au/data/api/3/action/package_show?id=national-public-toilet-map"             | python -c 'import json,sys; r=json.load(sys.stdin)["result"]["resources"]; print(next(x["url"] for x in r if x["format"].upper() == "CSV"))')
+          curl -sSfL -o build/toilets/toiletmap.csv "$url"
+
       - name: Build
         run: python tools/build_road_db.py build/osm/australia-latest.osm.pbf build/roads.db
 

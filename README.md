@@ -17,6 +17,8 @@ The build scripts in `tools/` are copies of the app's; the database format must 
   Creative Commons Attribution 4.0.
 - **Transport for NSW**, [NSW Rest Areas](https://opendata.transport.nsw.gov.au/data/dataset/nsw-rest-areas),
   Creative Commons Attribution 4.0.
+- **Australian Government**, [National Public Toilet Map](https://data.gov.au/data/dataset/national-public-toilet-map),
+  Creative Commons Attribution.
 - **NSW Department of Education**, school terms; **date.nager.at**, public holidays.
 
 ## Build it yourself

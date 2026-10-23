@@ -281,7 +281,8 @@ def main():
     # Places to stop: NSW rest areas (when downloaded) and, from the same extract, fast food,
     # toilets and fuel (places.py).
     import places
-    places.add(src, dst, os.path.join(os.path.dirname(dst) or ".", "rest", "rest-areas.csv"))
+    base = os.path.dirname(dst) or "."
+    places.add(src, dst, os.path.join(base, "rest", "rest-areas.csv"), os.path.join(base, "toilets", "toiletmap.csv"))
     mb = os.path.getsize(dst) / 1e6
     print(f"{handler.count:,} roads, {handler.with_limit:,} with a posted limit, {handler.school:,} school zones; "
           f"{counts[CAMERA]:,} cameras, {counts[STOP]:,} STOP, {counts[GIVE_WAY]:,} GIVE WAY "

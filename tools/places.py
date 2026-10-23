@@ -1,7 +1,10 @@
-"""Adds places to stop at to a road database: NSW rest areas (Transport for NSW) and, from
-OpenStreetMap, fast food chains, public toilets and fuel stations. For the REST button.
+"""Adds places to stop at to a road database: NSW rest areas (Transport for NSW), public toilets
+(the National Public Toilet Map, OpenStreetMap where it has none) and, from OpenStreetMap, fast
+food chains and fuel stations. For the STOPS button.
 
-    python tools/places.py [australia-latest.osm.pbf] [build/roads.db] [build/rest/rest-areas.csv]
+    python tools/places.py [australia-latest.osm.pbf] [build/roads.db] [build/rest/rest-areas.csv] [build/toilets/toiletmap.csv]
+
+The toilet map is the CSV of https://data.gov.au/data/dataset/national-public-toilet-map (CC BY).
 
 The CSV is "NSW Rest Areas - CSV Format" of
 https://opendata.transport.nsw.gov.au/data/dataset/nsw-rest-areas (CC BY), downloadable with the
@@ -109,11 +112,50 @@ def rest_areas(path):
     return rows
 
 
-def add(pbf, db_path, rest_csv):
+def toilet_map(path):
+    """National Public Toilet Map: open ones that need no key; hours as "24/7", "daylight" or ""."""
+    rows = []
+    with open(path, encoding="utf-8-sig", errors="replace") as f:
+        for r in csv.DictReader(f):
+            hours_text = r.get("OpeningHours", "")
+            if hours_text.startswith("Currently closed") or r.get("KeyRequired") == "True":
+                continue
+            try:
+                lat, lon = float(r["Latitude"]), float(r["Longitude"])
+            except (KeyError, ValueError):
+                continue
+            hours = {"OPEN: 24 hours": "24/7", "OPEN: Daylight hours": "daylight"}.get(hours_text, "")
+            yes = lambda k: r.get(k) == "True"
+            info = " · ".join(x for x in (
+                "DAYLIGHT HOURS" if hours == "daylight" else "",
+                "VENUE HOURS" if hours_text == "OPEN: Venue hours" else "",
+                "ACCESSIBLE" if yes("Accessible") else "",
+                "BABY CHANGE" if yes("BabyChange") else "",
+                "SHOWER" if yes("Shower") else "",
+                "PARKING" if yes("Parking") else "",
+                "PAID" if yes("PaymentRequired") else "",
+            ) if x)
+            name = (r.get("Name") or "Public toilets").strip()
+            town = (r.get("Town") or "").strip()
+            if town and town.lower() not in name.lower():
+                name += f", {town}"
+            rows.append((lat, lon, TOILETS, -1, name, info, hours, 0))
+    return rows
+
+
+def add(pbf, db_path, rest_csv, toilets_csv=None):
     handler = Places()
     print(f"Places from {pbf} ...", flush=True)
     handler.apply_file(pbf, locations=True, idx="flex_mem")
     rows = handler.rows
+    if toilets_csv and os.path.exists(toilets_csv):
+        official = toilet_map(toilets_csv)
+        # OpenStreetMap's toilets only where the official map has none within ~100 m.
+        near = {(round(r[0], 3), round(r[1], 3)) for r in official}
+        def covered(lat, lon):
+            return any((round(lat, 3) + a, round(lon, 3) + b) in near
+                       for a in (-0.001, 0, 0.001) for b in (-0.001, 0, 0.001))
+        rows = [r for r in rows if r[2] != TOILETS or not covered(r[0], r[1])] + official
     if rest_csv and os.path.exists(rest_csv):
         rows += rest_areas(rest_csv)
     db = sqlite3.connect(db_path)
@@ -135,4 +177,5 @@ def add(pbf, db_path, rest_csv):
 if __name__ == "__main__":
     add(sys.argv[1] if len(sys.argv) > 1 else "build/osm/australia-latest.osm.pbf",
         sys.argv[2] if len(sys.argv) > 2 else "build/roads.db",
-        sys.argv[3] if len(sys.argv) > 3 else "build/rest/rest-areas.csv")
+        sys.argv[3] if len(sys.argv) > 3 else "build/rest/rest-areas.csv",
+        sys.argv[4] if len(sys.argv) > 4 else "build/toilets/toiletmap.csv")
