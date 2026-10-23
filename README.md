@@ -1,7 +1,9 @@
-# Road Alerts map data
+# Road Alerts map data — NSW
 
-The offline road database of the Road Alerts app (speed limits, school zones, speed cameras,
-STOP / GIVE WAY signs for Australia), built here once a month by GitHub Actions and published as
+The offline road database of the Road Alerts app for **New South Wales**: speed limits (official
+NSW speed zones over OpenStreetMap), school zones on NSW school days, speed cameras, STOP / GIVE
+WAY signs. The OpenStreetMap part covers all of Australia, but only NSW has the official zones and
+school calendar. Built here once a month by GitHub Actions and published as
 the latest release: `roads.db.gz` and `roads.json` (dates, size, SHA-256 of the database).
 
 The build scripts in `tools/` are copies of the app's; the database format must match the app.
